@@ -1,0 +1,360 @@
+﻿<html>
+<meta charset="utf-8" />
+<title>WebTest</title>
+<script language="javascript" type="text/javascript">
+    var wsUri = "ws://47.91.198.246:55555/";
+    var output;
+    var  docheckin=0;
+    var  cc=0;
+    var  str1='{"cmd":"0","seatno":"1001","telno":"","para":""}';
+    var  websocket=null;
+	var heartbeat_timer=0;
+    function init()  
+    {
+        cc=0; 
+        output = document.getElementById("output"); 
+		if(heartbeat_timer!=0) window.clearInterval(heartbeat_timer);//yhy2017-12-18
+		heartbeat_timer = setInterval( function(){keepalive(websocket)}, 5000 ); 
+        InitSocket();
+    }
+    function InitSocket() {
+    	writeToScreen("new WebSocket");    
+		if(websocket!=null) DisConnect();		
+		websocket = new WebSocket(wsUri);
+        websocket.onopen = function (evt) { onOpen(evt) };
+        websocket.onclose = function (evt) { onClose(evt) };
+        websocket.onmessage = function (evt) { onMessage(evt) };
+        websocket.onerror = function (evt) { onError(evt) }; 
+    }
+     function onOpen(evt)
+     {
+        writeToScreen("CONNECTED");  
+      	if(docheckin==1)
+      	{
+      	  checkIn(document.getElementById('seatno').value,document.getElementById('password').value,document.getElementById('telno').value);
+      	}     
+    }
+    function onClose(evt) 
+    {
+    	cc=3;
+     	writeToScreen("DISCONNECTED"); 
+     }   
+    function onError(evt) 
+    { 
+        cc=3;
+    	writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data); 
+    }
+    function doSend(message) {  websocket.send(message); }   
+    function writeToScreen(message) 
+    {
+        var pre = document.createElement("p");
+        pre.style.wordWrap = "break-word";
+        pre.innerHTML = message;
+        output.appendChild(pre);
+    }    
+
+    function OnConnect() 
+    {
+        wsUri = document.getElementById("url").value;
+        init();        
+    }
+     function DisConnect() {  
+     		//docheckin=0;
+            if (websocket != null) {  
+            		writeToScreen("DisConnect"); 
+                websocket.close();  
+                delete websocket;
+                websocket = null;                 
+            }  
+        }  
+   function DoDisConnect() {  
+			if(docheckin==1)checkOut(document.getElementById('seatno').value)
+            DisConnect();         	             
+        }   
+    function keepalive( ws )
+    {	 	
+    	if(websocket==null) return ;
+		cc++; 
+		if(websocket.readyState == WebSocket.CONNECTING)
+		{
+		//	writeToScreen("连接正在建立");	
+			return;
+		}
+		if(websocket.readyState == WebSocket.CLOSING)
+		{
+		//	writeToScreen("连接正在进行关闭");	
+			return;
+		}
+		if(websocket.readyState == WebSocket.CLOSED)
+		{
+		//	writeToScreen("连接已关闭");	
+    	    InitSocket();   
+			return;
+		}
+ 
+    	if(docheckin && cc>6)
+    	{     
+    	    cc=3;
+    	    InitSocket();   
+			return ;
+    	}
+		ws.send( '{}' );
+    }
+    
+    window.onbeforeunload=function ()
+    {
+	   DisConnect();
+    }
+    
+    function onMessage(evt)
+    {
+      cc=0;	      
+      if(evt.data.length>4)
+      {
+         document.getElementById('result').value = evt.data;         
+       	  var json = JSON.parse(evt.data); 		 
+       	  if(json.state==0 && json.para=="BeCheckout") docheckin=0;
+       	  writeToScreen('<span style="color: green;">recv:</span>' +evt.data);
+      }      
+    }
+
+     //----------------------------------------------------------------------------------------------------------
+    function loginServer(url)
+    {
+    	  wsUri = url;
+    	  DisConnect();
+          init();
+    }
+	function GetQueueInfo(seatno,queueid)
+    {
+		str1='{"cmd":"50","seatno":"'+seatno+'","telno":"","para":"'+queueid+'"}';
+    	websocket.send(str1);
+    }
+	
+    function checkIn(seatno,password,telno)
+    {
+    	str1='{"cmd":"1","seatno":"'+seatno+'","telno":"'+telno+'","para":"'+password+'"}';
+    	websocket.send(str1);
+    	docheckin=1;
+    }
+    function checkOut(seatno)
+    {
+    	str1='{"cmd":"2","seatno":"'+seatno+'","telno":"","para":""}';
+    	docheckin=0;
+    	websocket.send(str1);    	
+    }
+    function makeCall(seatno,telno)
+    {
+		   str1='{"cmd":"3","seatno":"'+seatno+'","telno":"'+telno+'","para":"1234567890-1234567890-1234567890-1234567890-ABCD"}';
+    	websocket.send(str1);
+    }
+    function dropCall(seatno)
+    {
+    	str1='{"cmd":"4","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+    function SetSeatState(seatno,seatstate)
+    {
+		str1='{"cmd":"5","seatno":"'+seatno+'","telno":"","para":"'+seatstate+'"}';
+    	websocket.send(str1);
+    }
+
+	function holduser(seatno)
+    {
+    	str1='{"cmd":"6","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		function unholduser(seatno)
+    {
+    	str1='{"cmd":"7","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+	function online(seatno)
+    {
+    	str1='{"cmd":"8","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+	function offline(seatno)
+    {
+    	str1='{"cmd":"9","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }	
+	
+	function calltouser(seatno,telno)
+    {    	 
+		  str1='{"cmd":"11","seatno":"'+seatno+'","telno":"'+telno+'","para":""}';
+    	websocket.send(str1);
+    }
+	function droptouser(seatno)
+    {
+    	str1='{"cmd":"12","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		function inmeet(seatno)
+    {
+    	str1='{"cmd":"13","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		function outmeet(seatno)
+    {
+    	str1='{"cmd":"14","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		function transCall(seatno)
+    {
+    	str1='{"cmd":"15","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+	
+		 function callSeat(seatno,telno)
+    {
+		  str1='{"cmd":"21","seatno":"'+seatno+'","telno":"'+telno+'","para":""}';
+    	websocket.send(str1);
+    }
+		function freeseat(seatno)
+    {
+    	str1='{"cmd":"22","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		function transSeat(seatno)
+    {
+    	str1='{"cmd":"25","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+	
+		 function moniter(seatno,para)
+    {
+		str1='{"cmd":"31","seatno":"'+seatno+'","telno":"","para":"'+para+'"}';
+    	websocket.send(str1);
+    }
+		 function outmoniter(seatno)
+    {
+		str1='{"cmd":"32","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		 function insert(seatno)
+    {
+		str1='{"cmd":"33","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		 function outinsert(seatno)
+    {
+		str1='{"cmd":"34","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		 function stopcall(seatno)
+    {
+		str1='{"cmd":"35","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+		 function robcall(seatno)
+    {
+		str1='{"cmd":"36","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+	 function transQueue(seatno,para,toqueueid)
+    {
+		str1='{"cmd":"41","seatno":"'+seatno+'","telno":"'+toqueueid+'","para":"'+para+'"}';
+    	websocket.send(str1);
+    }
+	function gotoIvr(seatno,para,rootactid)
+    {
+		//para= actid+";"+extinfo
+		str1='{"cmd":"42","seatno":"'+seatno+'","telno":"'+rootactid+'","para":"'+para+'"}';
+    	websocket.send(str1);
+    }
+	function gotoAuthIvr(seatno,para,rootactid)
+    {
+		//para= actid+";"+extinfo
+		str1='{"cmd":"43","seatno":"'+seatno+'","telno":"'+rootactid+'","para":"'+para+'"}';
+    	websocket.send(str1);
+    } 
+	
+	function playfile(seatno,para)
+    {
+		str1='{"cmd":"44","seatno":"'+seatno+'","telno":"","para":"'+para+'"}';
+    	websocket.send(str1);
+    }
+	 function stopplay(seatno)
+    {
+		str1='{"cmd":"44","seatno":"'+seatno+'","telno":"","para":""}';
+    	websocket.send(str1);
+    }
+     </script>
+<body>
+<legend>WebTestGUI</legend>
+    <p><span>Serverurl:</span><input id="url" type="text" size="32" value="ws://47.91.198.246:55555/"/></p>
+    <td bgcolor="#fdfdfd" width="1000px" > 
+    <div align="left" ><a href="#" onclick="loginServer(document.getElementById('url').value)"> [Connect2Svr]</a>
+    	<a href="#" onclick="DoDisConnect()"> [DisConnect]</a>
+    </div>
+    <p>
+    <span>坐席工号:</span><input id="seatno" type="text"  value="8001"/>
+    <span>坐席密码:</span><input id="password" type="text"  value="1234"/>
+    <span>绑定号码:</span><input id="telno" type="text"  value="8001"/>    
+    </p>
+    <p>
+     <a href="#" onclick="checkIn(document.getElementById('seatno').value,document.getElementById('password').value,document.getElementById('telno').value)"> [签入checkin]</a>
+     <a href="#" onclick="checkOut(document.getElementById('seatno').value)"> [签出checkout]</a>  
+    </p>
+	
+     <p>
+	 
+	 <span>测试参数:</span><input id="param" type="text"  value="0"/> 
+     </p>
+	 <h4>----------------------坐席台基本功能-----------------</h4>	 
+     <a href="#" onclick="makeCall(document.getElementById('seatno').value,document.getElementById('param').value)"> [呼叫makeCall]</a>
+     <a href="#" onclick="dropCall(document.getElementById('seatno').value)"> [挂机dropCall]</a>     
+    <br>
+	 
+	 <div align="left" >	
+	<a href="#" onclick="SetSeatState(document.getElementById('seatno').value,document.getElementById('param').value)"> [设置坐席忙闲SetSeatState]</a>
+	<a href="#" onclick="online(document.getElementById('seatno').value)"> [上线online]</a>
+	<a href="#" onclick="offline(document.getElementById('seatno').value)"> [下线offline]</a>
+	<a href="#" onclick="holduser(document.getElementById('seatno').value)"> [保持用户holduser]</a>
+	<a href="#" onclick="unholduser(document.getElementById('seatno').value)"> [取消保持unholduser]</a>
+	</div>
+	 <h4>----------------------坐席台呼叫用户功能-----------------</h4>	
+	<div align="left" >
+	<a href="#" onclick="calltouser(document.getElementById('seatno').value,document.getElementById('param').value)"> [咨询用户calltouser]</a>
+	<a href="#" onclick="droptouser(document.getElementById('seatno').value)"> [取消咨询用户droptouser]</a>
+	<a href="#" onclick="inmeet(document.getElementById('seatno').value)"> [咨询用户三方通话inmeet]</a>
+	<a href="#" onclick="outmeet(document.getElementById('seatno').value)"> [咨询用户退出三方通话outmeet]</a>
+	<a href="#" onclick="transCall(document.getElementById('seatno').value)"> [转接到咨询接用户transCall]</a>
+	</div>
+	<h4>----------------------坐席台呼叫坐席功能-----------------</h4>	
+	<div align="left" >
+	<a href="#" onclick="callSeat(document.getElementById('seatno').value,document.getElementById('param').value)"> [咨询坐席callSeat]</a>
+	<a href="#" onclick="freeseat(document.getElementById('seatno').value)"> [取消咨询坐席freeseat]</a>
+	<a href="#" onclick="transSeat(document.getElementById('seatno').value)"> [转接到咨询接坐席transSeat]</a>	
+	</div>
+	
+
+	<h4>----------------------班长台功能-----------------</h4>	
+	<div align="left" >	
+	<a href="#" onclick="moniter(document.getElementById('seatno').value,document.getElementById('param').value)"> [班长监听坐席moniter]</a>
+	<a href="#" onclick="outmoniter(document.getElementById('seatno').value)"> [班长退出监听outmoniter]</a>
+	<a href="#" onclick="insert(document.getElementById('seatno').value)"> [班长插入insert]</a>
+	<a href="#" onclick="outinsert(document.getElementById('seatno').value)"> [班长退出插入outinsert]</a>
+	<a href="#" onclick="stopcall(document.getElementById('seatno').value)"> [班长强拆电话stopcall]</a>
+	<a href="#" onclick="robcall(document.getElementById('seatno').value)"> [班长强接电话robcall]</a>
+	<a href="#" onclick="GetQueueInfo(document.getElementById('seatno').value,document.getElementById('param').value)"> [获取用户队列信息GetQueueInfo]</a>
+	</div>
+	
+	<h4>----------------------坐席台高级功能-----------------</h4>	
+	<div align="left" >	
+	<a href="#" onclick="transQueue(document.getElementById('seatno').value,document.getElementById('param').value,document.getElementById('telno').value)"> [座席组transQueue]</a>
+	<a href="#" onclick="gotoIvr(document.getElementById('seatno').value,document.getElementById('param').value,document.getElementById('telno').value)"> [转IVRgotoIvr]</a>
+	<a href="#" onclick="gotoAuthIvr(document.getElementById('seatno').value,document.getElementById('param').value,document.getElementById('telno').value)"> [鉴权gotoAuthIvr]</a>
+	<a href="#" onclick="playfile(document.getElementById('seatno').value,document.getElementById('param').value)"> [播放语音playfile]</a>
+	<a href="#" onclick="stopplay(document.getElementById('seatno').value)"> [停止播音stopplay]</a>
+	</div>
+
+    </td>
+    <p><span>send:</span><input id="youname" type="text"  size="64" value="test"/><input type="button" value="Send" onclick="doSend(document.getElementById('youname').value)" /></p>
+    <p><span>recv:</span><input id="result" type="text"  size="128"  value=""/></p>
+<h2>WebTest</h2>
+<div id="output"></div>
+
+</body>
+</html>
